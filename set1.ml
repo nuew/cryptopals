@@ -18,6 +18,20 @@ let from_hex input =
         else acc in
     bytes_from_hex 0 (Bytes.create ((String.length input) / 2)) (* expected size of output *)
 
+let to_hex input =
+    let hex_from_nibble nibble = match nibble with
+        0x0 -> '0' | 0x1 -> '1' | 0x2 -> '2' | 0x3 -> '3' | 0x4 -> '4' | 0x5 -> '5' | 0x6 -> '6' |
+        0x7 -> '7' | 0x8 -> '8' | 0x9 -> '9' | 0xa -> 'a' | 0xb -> 'b' | 0xc -> 'c' | 0xd -> 'd' |
+        0xe -> 'e' | 0xf -> 'f' | _ -> raise (Invalid_argument "must be between 0x0 and 0xf") in
+    let rec hex_from_bytes index acc =
+        if Bytes.length input >= index + 1 then
+            let byte = int_of_char (Bytes.get input index) in
+            let nibbles = [(byte land 0xf0) lsr 4; byte land 0xf] in
+            let hex_chars = List.map hex_from_nibble nibbles in
+            hex_from_bytes (index + 1) (acc @ hex_chars)
+        else String.of_seq (List.to_seq acc) in
+    hex_from_bytes 0 []
+
 let base64_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
 let base64url_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_="
 
@@ -55,7 +69,13 @@ let to_base64_inner alphabet input =
         if Bytes.length input > (index + 3) then to_base64_raw (index + 3) output else output in
     if Bytes.length input <> 0 then (* unless the input is empty *)
         Bytes.to_string (to_base64_raw 0 Bytes.empty) (* convert the input to a base64 group *)
-    else String.make 0 '\x00' (* otherwise return the empty string *)
+    else "" (* otherwise return the empty string *)
 
 let to_base64 = to_base64_inner base64_alphabet
 let to_base64url = to_base64_inner base64url_alphabet
+
+let xor_buffers bufA bufB =
+    let mapxor index byteA =
+        let byteA, byteB = int_of_char byteA, int_of_char (Bytes.get bufB index) in
+        char_of_int (byteA lxor byteB) in
+    Bytes.mapi mapxor bufA
