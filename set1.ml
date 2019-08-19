@@ -79,3 +79,28 @@ let xor_buffers bufA bufB =
         let byteA, byteB = int_of_char byteA, int_of_char (Bytes.get bufB index) in
         char_of_int (byteA lxor byteB) in
     Bytes.mapi mapxor bufA
+
+let xor_buffer_by_byte buf byte =
+    let byte = int_of_char byte in
+    Bytes.map (fun buf_byte -> char_of_int ((int_of_char buf_byte) lxor byte)) buf
+
+module StringSet = Set.Make(String)
+type dictionary = StringSet.t
+
+let in_dictionary dictionary plaintext =
+    let tokenizer = Str.regexp "[ \012\n\r\t]+" in
+    let tokens = Str.split tokenizer plaintext in
+    let total = List.length tokens in
+    let valid = List.fold_left (fun a b ->
+            if StringSet.exists (String.equal b) dictionary then a + 1 else a
+        ) 0 tokens in
+    if total > 0 then (float valid) /. (float total) else 0.
+
+let open_dictionary dictionary_filename =
+    let dictionary_file = open_in dictionary_filename in
+    let rec list_add_line acc =
+        try list_add_line ((input_line dictionary_file) :: acc)
+        with End_of_file -> acc in
+    let dictionary = StringSet.of_list (list_add_line []) in
+    close_in dictionary_file;
+    dictionary
